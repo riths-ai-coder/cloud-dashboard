@@ -86,7 +86,7 @@ export default function CloudDashboard() {
       <div className="max-w-4xl mx-auto border border-slate-800 bg-slate-900/50 p-6 rounded-xl shadow-2xl">
         <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-8">
           <div>
-            <h1 className="text-xl font-bold text-blue-400 tracking-widest underline decoration-blue-900">CLOUD_LIVE_FEED</h1>
+            <h1 className="text-xl font-bold text-blue-400 tracking-widest underline decoration-blue-900">CLOUD_LIVE_HEALTH_DASHBOARD</h1>
             <p className="text-xs text-slate-500 mt-1 uppercase">Updates every 30s • Last: {lastSync}</p>
           </div>
           {!isMonitoring ? (
@@ -111,7 +111,7 @@ export default function CloudDashboard() {
               s.status === 'Warning' ? 'border-yellow-500 bg-yellow-950/10' : 'border-green-600 bg-slate-900'
             }`}>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-lg font-bold tracking-tight uppercase">{s.name} Cloud</span>
+                <span className="text-lg font-bold tracking-tight uppercase">{s.name} HEALTH</span>
                 <span className={`px-2 py-1 text-[10px] font-black rounded ${
                   s.status === 'CRITICAL' ? 'bg-red-600 text-white' : 
                   s.status === 'Warning' ? 'bg-yellow-500 text-black' : 'bg-green-800 text-green-100'
