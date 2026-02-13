@@ -110,7 +110,7 @@ export default function CloudDashboard() {
         
         <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-6 rounded-lg shadow-xl">
           <div>
-            <h1 className="text-blue-400 font-bold text-xl">CLOUD_WATCH_v1</h1>
+            <h1 className="text-blue-400 font-bold text-xl">CLOUD_HEALTH_DASHBOARD</h1>
             <p className={`text-[10px] font-bold ${audioEnabled ? 'text-green-500' : 'text-red-500 animate-pulse'}`}>
               {audioEnabled ? "SYSTEM_ARMED" : "CLICK_TO_ARM_AUDIO"}
             </p>
