@@ -5,7 +5,120 @@ export default function CloudDashboard() {
   const [services, setServices] = useState([
     { id: 'aws', name: 'AWS', status: 'Healthy', lastChange: null, details: 'Global Status' },
     { id: 'azure', name: 'Azure', status: 'Healthy', lastChange: null, details: 'Core Services' },
+    { id: 'gcp', name: 'GC"use client";
+import React, { useState, useEffect, useRef } from 'react';
+
+export default function CloudDashboard() {
+  const [services, setServices] = useState([
+    { id: 'aws', name: 'AWS', status: 'Healthy', lastChange: null, details: 'Global Status' },
+    { id: 'azure', name: 'Azure', status: 'Healthy', lastChange: null, details: 'Core Services' },
     { id: 'gcp', name: 'GCP', status: 'Healthy', lastChange: null, details: 'Cloud Health' }
+  ]);
+  const [logs, setLogs] = useState([]);
+  const [lastSync, setLastSync] = useState(new Date().toLocaleTimeString());
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [testMode, setTestMode] = useState(false);
+  
+  // Ref to track if we've already played the alert for the current failure
+  const alertPlayed = useRef({});
+
+  const enableAudio = () => {
+    setAudioEnabled(true);
+    // Create a silent buffer to "wake up" the browser audio engine
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const buffer = context.createBuffer(1, 1, 22050);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.start(0);
+  };
+
+  const addLog = (serviceName, status, details) => {
+    const newLog = {
+      id: Date.now(),
+      time: new Date().toLocaleTimeString(),
+      service: serviceName,
+      status: status,
+      msg: details
+    };
+    setLogs(prev => [newLog, ...prev].slice(0, 10));
+  };
+
+  const playAlert = () => {
+    try {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.connect(gain); gain.connect(context.destination);
+      osc.type = 'sawtooth'; 
+      osc.frequency.setValueAtTime(440, context.currentTime);
+      gain.gain.setValueAtTime(0.1, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1);
+      osc.start(); 
+      osc.stop(context.currentTime + 1);
+    } catch (e) {
+      console.error("Audio failed:", e);
+    }
+  };
+
+  const fetchRealStatus = async () => {
+    const currentTimeString = new Date().toLocaleTimeString();
+    setLastSync(currentTimeString);
+
+    try {
+      const proxy = "https://api.allorigins.win/get?url=";
+      const feeds = { aws: `${proxy}${encodeURIComponent('https://status.aws.amazon.com/lib/status.json')}` };
+      const response = await fetch(feeds.aws);
+      const data = await response.json();
+      const awsData = JSON.parse(data.contents);
+      
+      const hasAwsIssue = (awsData.current && awsData.current.length > 0) || testMode;
+
+      setServices(prev => prev.map(s => {
+        let isDown = (s.id === 'aws') ? hasAwsIssue : false;
+        let detailMsg = isDown ? (testMode ? "MANUAL_TEST_FAILURE" : "Incident Reported") : "Operational";
+        
+        const now = Date.now();
+        let newStatus = s.status;
+        let lastChange = s.lastChange;
+
+        if (isDown) {
+          if (!lastChange) {
+            lastChange = now;
+            newStatus = 'Warning';
+            addLog(s.name, 'ISSUE DETECTED', 'Monitoring threshold reached.');
+          } else if (now - lastChange > 60000) {
+            if (newStatus !== 'CRITICAL') {
+                newStatus = 'CRITICAL';
+                playAlert();
+                addLog(s.name, 'CRITICAL ALERT', 'Outage verified (>60s).');
+            }
+          }
+        } else if (s.status !== 'Healthy') {
+          newStatus = 'Healthy';
+          lastChange = null;
+          addLog(s.name, 'RECOVERED', 'All systems green.');
+        }
+
+        return { ...s, status: newStatus, lastChange, details: detailMsg };
+      }));
+    } catch (err) { 
+        console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRealStatus();
+    const interval = setInterval(fetchRealStatus, 15000); // Polling every 15s for faster testing
+    return () => clearInterval(interval);
+  }, [testMode, audioEnabled]);
+
+  return (
+    <div onClick={enableAudio} className="min-h-screen bg-slate-950 text-slate-200 font-mono p-4 md:p-10">
+      <div className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Header Section */}
+        <div className="flex justify-between items-center bg-slate-900 border border-P', status: 'Healthy', lastChange: null, details: 'Cloud Health' }
   ]);
   const [logs, setLogs] = useState([]);
   const [lastSync, setLastSync] = useState("Initializing...");
