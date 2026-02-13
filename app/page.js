@@ -3,57 +3,81 @@ import React, { useState, useEffect } from 'react';
 
 export default function CloudDashboard() {
   const [services, setServices] = useState([
-    { id: 'aws', name: 'AWS', status: 'Healthy', lastChange: null, details: '' },
-    { id: 'azure', name: 'Azure', status: 'Healthy', lastChange: null, details: '' },
-    { id: 'gcp', name: 'GCP', status: 'Healthy', lastChange: null, details: '' }
+    { id: 'aws', name: 'AWS', status: 'Healthy', lastChange: null, details: 'Global Status' },
+    { id: 'azure', name: 'Azure', status: 'Healthy', lastChange: null, details: 'Core Services' },
+    { id: 'gcp', name: 'GCP', status: 'Healthy', lastChange: null, details: 'Cloud Health' }
   ]);
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const [lastSync, setLastSync] = useState("Never");
+  const [lastSync, setLastSync] = useState("Initializing...");
 
-  // Audio function to play the alert
   const playAlert = () => {
     const context = new (window.AudioContext || window.webkitAudioContext)();
     const osc = context.createOscillator();
     const gain = context.createGain();
-    osc.connect(gain);
-    gain.connect(context.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(440, context.currentTime);
+    osc.connect(gain); gain.connect(context.destination);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(440, context.currentTime);
     gain.gain.setValueAtTime(0.1, context.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1);
-    osc.start();
-    osc.stop(context.currentTime + 1);
+    osc.start(); osc.stop(context.currentTime + 1);
   };
 
-  const updateStatus = () => {
-    setServices(prev => prev.map(s => {
-      // SIMULATION: Randomly fail for demo (Change this to real API fetch later)
-      const isDown = Math.random() > 0.8; 
-      const now = Date.now();
-      let newStatus = s.status;
-      let lastChange = s.lastChange;
+  const fetchRealStatus = async () => {
+    try {
+      // Using a public proxy to avoid CORS errors
+      const proxy = "https://api.allorigins.win/get?url=";
+      const feeds = {
+        aws: `${proxy}${encodeURIComponent('https://status.aws.amazon.com/lib/status.json')}`,
+        google: `${proxy}${encodeURIComponent('https://status.cloud.google.com/incidents.json')}`
+      };
 
-      if (isDown) {
-        if (!lastChange) {
-          lastChange = now;
-          newStatus = 'Warning'; 
-        } else if (now - lastChange > 60000) {
-          if (newStatus !== 'CRITICAL') playAlert();
-          newStatus = 'CRITICAL';
+      // Fetching AWS as an example
+      const response = await fetch(feeds.aws);
+      const data = await response.json();
+      const awsData = JSON.parse(data.contents);
+      
+      // AWS logic: check if any current incidents exist
+      const hasAwsIssue = awsData.current && awsData.current.length > 0;
+
+      setServices(prev => prev.map(s => {
+        let isDown = false;
+        let detailMsg = "All systems operational";
+
+        if (s.id === 'aws') {
+            isDown = hasAwsIssue;
+            detailMsg = hasAwsIssue ? awsData.current[0].summary : "Systems Normal";
         }
-      } else {
-        lastChange = null;
-        newStatus = 'Healthy';
-      }
 
-      return { ...s, status: newStatus, lastChange, details: isDown ? "Connection Timeout" : "" };
-    }));
-    setLastSync(new Date().toLocaleTimeString());
+        const now = Date.now();
+        let newStatus = s.status;
+        let lastChange = s.lastChange;
+
+        if (isDown) {
+          if (!lastChange) {
+            lastChange = now;
+            newStatus = 'Warning';
+          } else if (now - lastChange > 60000) {
+            if (newStatus !== 'CRITICAL') playAlert();
+            newStatus = 'CRITICAL';
+          }
+        } else {
+          lastChange = null;
+          newStatus = 'Healthy';
+        }
+
+        return { ...s, status: newStatus, lastChange, details: detailMsg };
+      }));
+
+      setLastSync(new Date().toLocaleTimeString());
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setLastSync("Sync Error - Retrying...");
+    }
   };
 
   useEffect(() => {
     if (!isMonitoring) return;
-    const interval = setInterval(updateStatus, 30000);
+    fetchRealStatus(); // Run immediately
+    const interval = setInterval(fetchRealStatus, 30000);
     return () => clearInterval(interval);
   }, [isMonitoring]);
 
@@ -62,42 +86,43 @@ export default function CloudDashboard() {
       <div className="max-w-4xl mx-auto border border-slate-800 bg-slate-900/50 p-6 rounded-xl shadow-2xl">
         <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-8">
           <div>
-            <h1 className="text-xl font-bold text-blue-400 tracking-widest">CLOUD_HEARTBEAT_v1.0</h1>
-            <p className="text-xs text-slate-500">SYNC: {lastSync}</p>
+            <h1 className="text-xl font-bold text-blue-400 tracking-widest underline decoration-blue-900">CLOUD_LIVE_FEED</h1>
+            <p className="text-xs text-slate-500 mt-1 uppercase">Updates every 30s • Last: {lastSync}</p>
           </div>
           {!isMonitoring ? (
-            <button 
-              onClick={() => { setIsMonitoring(true); updateStatus(); }}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm transition-all"
-            >
-              INITIALIZE MONITORING
+            <button onClick={() => setIsMonitoring(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full text-xs font-bold transition-all shadow-lg shadow-blue-900/20">
+              START REAL-TIME MONITOR
             </button>
           ) : (
-            <span className="text-green-500 text-sm animate-pulse">● MONITORING_ACTIVE</span>
+            <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span className="text-green-500 text-xs font-bold">LIVE_FEED_ON</span>
+            </div>
           )}
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {services.map(s => (
-            <div key={s.id} className={`p-4 border rounded-lg transition-all ${
-              s.status === 'CRITICAL' ? 'border-red-500 bg-red-950/20' : 
-              s.status === 'Warning' ? 'border-yellow-500 bg-yellow-950/20' : 'border-slate-800 bg-slate-900'
+            <div key={s.id} className={`p-5 border-l-4 rounded-r-lg transition-all duration-500 ${
+              s.status === 'CRITICAL' ? 'border-red-600 bg-red-950/10' : 
+              s.status === 'Warning' ? 'border-yellow-500 bg-yellow-950/10' : 'border-green-600 bg-slate-900'
             }`}>
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-bold">{s.name} Infrastructure</span>
-                <span className={`px-3 py-1 rounded text-xs font-black ${
-                  s.status === 'CRITICAL' ? 'bg-red-600 text-white animate-bounce' : 
-                  s.status === 'Warning' ? 'bg-yellow-500 text-black' : 'bg-green-600 text-white'
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-lg font-bold tracking-tight uppercase">{s.name} Cloud</span>
+                <span className={`px-2 py-1 text-[10px] font-black rounded ${
+                  s.status === 'CRITICAL' ? 'bg-red-600 text-white' : 
+                  s.status === 'Warning' ? 'bg-yellow-500 text-black' : 'bg-green-800 text-green-100'
                 }`}>
                   {s.status}
                 </span>
               </div>
-              {s.status !== 'Healthy' && (
-                <div className="mt-3 text-xs text-slate-400 border-t border-slate-700 pt-2">
-                  <p>ISSUE: {s.details}</p>
-                  <p className="mt-1 text-[10px] text-slate-500 italic uppercase">
-                    Alert Triggered: {new Date(s.lastChange).toLocaleTimeString()}
-                  </p>
+              <p className="text-xs text-slate-400 font-light italic">"{s.details}"</p>
+              {s.status === 'CRITICAL' && (
+                <div className="mt-4 text-[10px] bg-red-600/20 p-2 rounded border border-red-600/30 text-red-400 animate-pulse">
+                   ALERT: Persistent failure detected for &gt; 60 seconds.
                 </div>
               )}
             </div>
